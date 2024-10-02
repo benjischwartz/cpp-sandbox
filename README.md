@@ -1,5 +1,16 @@
 # C++ Sandbox
 
+## Action Items to improve C++
+
+1. Create a tool that helps understand **object lifetime** (use stack trace library)
+2. Study the **lambda**
+3. Create a **`std::function`** implementation ⇒ implement lambdas, free functions, member functions, static member functions, etc.
+    1. Make **`std::function constexpr`**
+4. Implement **`unique_ptr`**
+5. Implement **`shared_ptr`**
+6. Implement **`vector`**
+7. Implement a **circular buffer** for integers using an array
+
 ## Object Lifetime
 
 - **Move Semantics Transfer Resources, Not Object Existence**:
