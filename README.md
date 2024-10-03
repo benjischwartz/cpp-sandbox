@@ -28,3 +28,117 @@
 - **Move Assignment and Move Constructor**:
     - The **move constructor** is invoked when a new object is being created from an rvalue.
     - The **move assignment operator** is invoked when an existing object is being assigned from an rvalue.
+
+## C++ Lambda vs `std::function` vs Function Pointer
+
+[**C++ Weekly - Ep 332 - C++ Lambda vs std::function vs Function Pointer - Jason Turner**](https://www.youtube.com/watch?v=aC-aAiS5Wuc)
+
+- lambdas and `std::function` are **not** equivalent
+
+**Lambda:** 
+
+- language construct for defining an **anonymous function**
+- captureless lambda is implicitly convertible to a function pointer
+
+**Function Pointer**
+
+- can create a **vector of function pointers**
+- **captureless** lambda is **implicitly convertible** to a function pointer
+
+```cpp
+std::vector<int (*)(int, int)> operations;
+
+// pass in a captureless lambda (converted to func pointer)
+operations.emplace_back([](int x, int y){ return x + y; });  
+
+// CAN'T do this (not captureless)
+int val1 = 5;
+operations.emplace_back([=](int x, int y){ return val1 + x - y; });
+
+// pass in a function pointer
+int add(int x, int y) { return x + y; }
+operations.emplace_back(add);  
+```
+
+**`std::function`** 
+
+- type-erased wrapper around a **“callable”**
+- a lot of **extra overhead,** but fixes the above case
+- good in the case where we need **type-erased function** which is callable on **anything** which takes that set of parameters.
+
+```cpp
+int val1 = 5;
+
+std::vector<std::function<int, (int, int)>> operations;
+operations.emplace_back([](int x, int y){ return x + y; });          // OK
+operations.emplace_back([](int x, int y){ return x - y; });          // OK
+operations.emplace_back([=](int x, int y){ return val1 + x - y; });  // OK
+operations.emplace_back(add);                                        // OK
+```
+
+## `std::function`
+
+[Jason Turner a simplified std::function implementation](https://www.youtube.com/watch?v=xJSKk_q25oQ)
+
+- not a lambda, not a function pointer
+- basic interface is it **needs to take some function signature**
+
+<aside>
+💡
+
+***Q: What is partial specialisation?***
+
+- You can specialise a template for a **subset of template parameters**
+- gives custom behaviour for certain types/values, gives more fine-grain control
+</aside>
+
+- We need a **type-erased wrapper** around the callable
+    - We will do this with a `callable_interface` and a `callable_impl : callable_interface` which is templated
+
+<aside>
+💡
+
+***Q: Why???***
+
+- We need to store a `unique_ptr` to a type of `callable_interface` , which has one virtual function which is simply `call`
+- As discussed in **type erasure**, we have a **concept** (defines an interface/idea) and we have a **model** (templated wrapper object which forwards the function to actual derived)
+</aside>
+
+<aside>
+💡
+
+***Q: What is going on here???***
+
+</aside>
+
+```cpp
+function(Ret (*f)(Param...)) 
+	: callable{std::make_unique<callable_impl<Ret (*)(Param...)>>(f)} {}
+```
+
+- This is the constructor for our implementation of `std_function`
+- Our `std_function` has a type erased member of type: `unique_ptr<callable_interface>` , the interface has the function `call()`
+    - We are initialising this type erased member
+- we `make_unique` which creates a **heap allocated** `callable_impl` which performs a `std::move`
+
+## Function Pointers
+
+**syntax** is pretty straightforward: `int (*fcnPtr)();` takes no arguments and returns an int.
+
+can **reassign function pointers** as long as the types match
+
+```cpp
+int foo() { return 5; }
+int goo() { return 6; }
+
+int main() {
+	int (*fcnPtr)(){&foo};
+	fcnPtr = &goo;
+	
+	// Dereference and call
+	(*fcnPtr());
+	
+	// Implicit dereference
+	fcnPtr();
+}
+```
