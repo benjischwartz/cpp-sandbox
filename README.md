@@ -1,5 +1,15 @@
 # C++ Sandbox
 
+## Table of Contents
+
+- [C++ Sandbox](#c++-sandbox)
+  - [Action Items to improve C++](#action-items-to-improve-c++)
+  - [Object Lifetime](#object-lifetime)
+  - [`std::function`](#`std::function`)
+  - [`unique_ptr`](#`unique_ptr`)
+    - [Functions to implement](#functions-to-implement)
+    - [**Basic Operations with Unique Pointers**](#**basic-operations-with-unique-pointers**)
+
 ## Action Items to improve C++
 
 1. Create a tool that helps understand **object lifetime** (use stack trace library)
@@ -28,53 +38,6 @@
 - **Move Assignment and Move Constructor**:
     - The **move constructor** is invoked when a new object is being created from an rvalue.
     - The **move assignment operator** is invoked when an existing object is being assigned from an rvalue.
-
-## C++ Lambda vs `std::function` vs Function Pointer
-
-[**C++ Weekly - Ep 332 - C++ Lambda vs std::function vs Function Pointer - Jason Turner**](https://www.youtube.com/watch?v=aC-aAiS5Wuc)
-
-- lambdas and `std::function` are **not** equivalent
-
-**Lambda:** 
-
-- language construct for defining an **anonymous function**
-- captureless lambda is implicitly convertible to a function pointer
-
-**Function Pointer**
-
-- can create a **vector of function pointers**
-- **captureless** lambda is **implicitly convertible** to a function pointer
-
-```cpp
-std::vector<int (*)(int, int)> operations;
-
-// pass in a captureless lambda (converted to func pointer)
-operations.emplace_back([](int x, int y){ return x + y; });  
-
-// CAN'T do this (not captureless)
-int val1 = 5;
-operations.emplace_back([=](int x, int y){ return val1 + x - y; });
-
-// pass in a function pointer
-int add(int x, int y) { return x + y; }
-operations.emplace_back(add);  
-```
-
-**`std::function`** 
-
-- type-erased wrapper around a **“callable”**
-- a lot of **extra overhead,** but fixes the above case
-- good in the case where we need **type-erased function** which is callable on **anything** which takes that set of parameters.
-
-```cpp
-int val1 = 5;
-
-std::vector<std::function<int, (int, int)>> operations;
-operations.emplace_back([](int x, int y){ return x + y; });          // OK
-operations.emplace_back([](int x, int y){ return x - y; });          // OK
-operations.emplace_back([=](int x, int y){ return val1 + x - y; });  // OK
-operations.emplace_back(add);                                        // OK
-```
 
 ## `std::function`
 
@@ -121,24 +84,31 @@ function(Ret (*f)(Param...))
     - We are initialising this type erased member
 - we `make_unique` which creates a **heap allocated** `callable_impl` which performs a `std::move`
 
-## Function Pointers
+## `unique_ptr`
 
-**syntax** is pretty straightforward: `int (*fcnPtr)();` takes no arguments and returns an int.
+- Responsible for **managing another object**, and disposes of it when `unique_ptr` goes out of scope, using the **associated deleter**
+    - Happens when `unique_ptr` object destroyed OR `unique_ptr` assigned to another pointer via `operator=` or `reset()`
+- Can be **empty**, can manage a **single object** (allocated with`new`) or allocated array of objects (allocated with `new[]`)
+- `const std::unique_ptr` means the **managed object is limited to the scope of `unique_ptr` object**. Otherwise (non- `const unique_ptr` ) ownership can be **transferred to another `unique_ptr`**
+- **Move Semantics**:
+    - `unique_ptr` can be moved using `std::move`, allowing ownership of the managed object to be transferred from one `unique_ptr` to another. After the move, the original `unique_ptr` is left in a valid but unspecified state (typically null).
+- **Custom Deleters**:
+    - You can specify a custom deleter for a `unique_ptr`, allowing for specialised destruction logic when the pointer goes out of scope.
 
-can **reassign function pointers** as long as the types match
+### Functions to implement
 
-```cpp
-int foo() { return 5; }
-int goo() { return 6; }
+1. Constructor/Destructor (Default, with pointer, etc.)
+2. Copy Constructor and assignment (deleted)
+3. Move constructor and assignment
+4. Pointer access (dereference and arrow)
+5. Release
+6. Reset
+7. Get (returns raw pointer)
+8. Boolean conversion operator (check if managing an object)
 
-int main() {
-	int (*fcnPtr)(){&foo};
-	fcnPtr = &goo;
-	
-	// Dereference and call
-	(*fcnPtr());
-	
-	// Implicit dereference
-	fcnPtr();
-}
-```
+### **Basic Operations with Unique Pointers**
+
+- **Creating Unique Pointers**: Use `std::make_unique<T>()` (since C++14) for efficient creation of unique pointers.
+- **Dereferencing**: You can use the `*`operator to access the underlying object or `->` to access its members.
+- **Resetting**: The `reset()` function can be used to replace the managed object with a new one or set it to `nullptr`, which deletes the current object.
+- **Releasing Ownership**: The `release()` function allows you to relinquish ownership of the managed object and return a raw pointer to it, leaving the `unique_ptr` null.
